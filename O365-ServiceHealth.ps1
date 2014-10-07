@@ -1,9 +1,9 @@
 ﻿function o365-ServiceHealth{
 
 begin{
-    $htmlfile = $env:HOME + '\o365-ServiceHealth.html'
-    out-file $htmlfile
-    $Header = @"
+$htmlfile = $env:HOME + '\o365-ServiceHealth.html'
+out-file $htmlfile
+$Header = @"
 <style>
 TABLE {border-width: 1px;border-style: solid;border-color: black;border-collapse: collapse;}
 TH {border-width: 1px;padding: 3px;border-style: solid;border-color: black;background-color: #6495ED;}
@@ -24,7 +24,7 @@ O365 Service Health
     http://blogs.technet.com/b/cammurray/archive/2014/09/24/using-powershell-to-obtain-the-office365-dashboard.aspx
 #>
 
-$cred = get-credential
+#$cred = get-credential
 
 $jsonPayload = (@{userName=$cred.username;password=$cred.GetNetworkCredential().password;} | convertto-json).tostring()
 $cookie = (invoke-restmethod -contenttype "application/json" -method Post -uri "https://api.admin.microsoftonline.com/shdtenantcommunications.svc/Register" -body $jsonPayload).RegistrationCookie
@@ -36,15 +36,17 @@ $notice = (invoke-restmethod -contenttype "application/json" -method Post -uri "
 process{ $events = $notice.Events
 
 $ServiceHealth = $events |Sort-Object LastUpdatedTime -Descending | ForEach-Object{
-    $information = $_ | select-object -Property StartTime, Status, ID, Title, Messages
-    foreach($message in $_.Messages){
+    $information = $_ | select-object -Property StartTime, Status, ID, Title, Messages, LastUpdatedTime, PublishedTime
+    $messagesSorted = $_.Messages |sort-object PublishedTime -Descending
+    foreach($message in $MessagesSorted){
         $information.Messages = $message.MessageText
-    $information
+        $information.PublishedTime = $message.PublishedTime
+        $information
     }
-} | select @{name="Start Time";expression={$information.StartTime}}, `
+} | select @{name="Start Time";expression={([datetime]$information.StartTime).AddHours(-4)}}, `
     @{name="Status";expression={$information.Status}}, `
-    @{name="ID";expression={$information.ID}}, `
     @{name="Title";expression={$information.Title}}, `
+    @{name="Update Time";expression={([datetime]$information.PublishedTime).AddHours(-4)}}, `
     @{name="Messages";expression={[string]$information.Messages}} `
     | ConvertTo-Html -Fragment -As Table | Out-String
     
