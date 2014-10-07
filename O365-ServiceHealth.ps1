@@ -19,7 +19,12 @@ O365 Service Health
 </title>
 "@
 
-#$cred = get-credential
+<#
+    This code section was taken from Cam Murray's Technet Blog
+    http://blogs.technet.com/b/cammurray/archive/2014/09/24/using-powershell-to-obtain-the-office365-dashboard.aspx
+#>
+
+$cred = get-credential
 
 $jsonPayload = (@{userName=$cred.username;password=$cred.GetNetworkCredential().password;} | convertto-json).tostring()
 $cookie = (invoke-restmethod -contenttype "application/json" -method Post -uri "https://api.admin.microsoftonline.com/shdtenantcommunications.svc/Register" -body $jsonPayload).RegistrationCookie
@@ -34,7 +39,8 @@ $ServiceHealth = $events |Sort-Object LastUpdatedTime -Descending | ForEach-Obje
     $information = $_ | select-object -Property StartTime, Status, ID, Title, Messages
     foreach($message in $_.Messages){
         $information.Messages = $message.MessageText
-    $information}
+    $information
+    }
 } | select @{name="Start Time";expression={$information.StartTime}}, `
     @{name="Status";expression={$information.Status}}, `
     @{name="ID";expression={$information.ID}}, `
